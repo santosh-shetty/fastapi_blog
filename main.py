@@ -7,6 +7,7 @@ import models
 import schemas
 import os
 import uuid
+from sqlalchemy.exc import IntegrityError
 
 # Initialize the application
 app = FastAPI()
@@ -27,13 +28,17 @@ def get_db():
         db.close()
 
 # Start Post
-@app.get("/post", response_model=List[schemas.Post])
+@app.get("/post", status_code=status.HTTP_200_OK)
 def read_post_list(db: Session = Depends(get_db)):
-    post_list = db.query(models.Post).all()  # Get all posts
+    post_list = db.query(models.Post).all() 
 
-    return post_list
+    return {
+        "status": "success",
+        "message": "Posts Found Successfully",
+        "posts": post_list
+    }
 
-@app.post("/post", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
+@app.post("/post", status_code=status.HTTP_201_CREATED)
 async def create_post(
     title: str = Form(...),
     content: str = Form(...),
@@ -63,20 +68,41 @@ async def create_post(
         db.commit()
         db.refresh(post_db)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    return post_db
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Database error"
+            }
+        )
+
+    return {
+        "status": "success",
+        "message": "Post Created Successfully"
+    }
     
 
 
-@app.get("/post/{id}", response_model=schemas.Post)
+@app.get("/post/{id}", status_code=status.HTTP_200_OK)
 def read_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).get(id) 
     if not post:
-        raise HTTPException(status_code=404, detail=f"Post with id {id} not found")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Post with id {id} not found"
+            }
+        )
 
-    return post
+    return {
+        "status": "success",
+        "message": "Post Found Successfully",
+        "post": post
+    }
 
-@app.put("/post/{id}", response_model=schemas.Post)
+
+@app.put("/post/{id}", status_code=status.HTTP_200_OK)
 async def update_post(
     id: int, 
     title: str = Form(...),
@@ -88,7 +114,13 @@ async def update_post(
     
     post_db = db.query(models.Post).get(id)
     if not post_db:
-        raise HTTPException(status_code=404, detail=f"Post with id {id} not found")
+       raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Post with id {id} not found"
+            }
+        )
 
     # Update the post attributes
     post_db.title = title
@@ -107,10 +139,14 @@ async def update_post(
 
     db.commit()
     db.refresh(post_db)
+    
+    return {
+        "status": "success",
+        "message": "Post Updated Successfully",
+        "post": post_db
+    }
 
-    return post_db
-
-@app.delete("/post/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/post/delete/{id}", status_code=status.HTTP_200_OK)
 def delete_post(id: int, db: Session = Depends(get_db)):
     post_db = db.query(models.Post).get(id)
 
@@ -122,24 +158,35 @@ def delete_post(id: int, db: Session = Depends(get_db)):
             
         db.delete(post_db)
         db.commit()
+        
     else:
-        raise HTTPException(status_code=404, detail=f"Post with id {id} not found")
+       raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Post with id {id} not found"
+            }
+        )
 
-    return None
+    return {
+        "status": "success",
+        "message": "Post Deleted Successfully",
+    }
 
 # End Post
 
 
-
-
-
 # Start Category
-@app.get("/category", response_model=List[schemas.Category])
+@app.get("/category", status_code=status.HTTP_200_OK)
 def read_category_list(db: Session = Depends(get_db)):
     category_list = db.query(models.Category).all()  
-    return category_list
+    return {
+        "status": "success",
+        "message": "Categories Found Successfully",
+        "categories": category_list
+    }
 
-@app.post("/category", response_model=schemas.Category, status_code=status.HTTP_201_CREATED)
+@app.post("/category", status_code=status.HTTP_201_CREATED)
 async def create_category(
     title: str = Form(...),
     description: str = Form(...),
@@ -159,19 +206,35 @@ async def create_category(
         db.refresh(category_db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    return category_db
+
+    return {
+        "status": "success",
+        "message": "Category Created Successfully",
+        "category":category_db
+    }
+
     
 
 
-@app.get("/category/{id}", response_model=schemas.Category)
+@app.get("/category/{id}", status_code=status.HTTP_200_OK)
 def read_category(id: int, db: Session = Depends(get_db)):
     category = db.query(models.Category).get(id) 
     if not category:
-        raise HTTPException(status_code=404, detail=f"Category with id {id} not found")
+         raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Category with id {id} not found"
+            }
+        )
 
-    return category
+    return {
+        "status": "success",
+        "message": "Post Found Successfully",
+        "category":category
+    }
 
-@app.put("/category/{id}", response_model=schemas.Category)
+@app.put("/category/{id}", status_code=status.HTTP_200_OK)
 async def update_category(
     id: int, 
     title: str = Form(...),
@@ -181,7 +244,13 @@ async def update_category(
     
     category_db = db.query(models.Category).get(id)
     if not category_db:
-        raise HTTPException(status_code=404, detail=f"Category with id {id} not found")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Category with id {id} not found"
+            }
+        )
 
     # Update the category attributes
     category_db.title = title
@@ -191,19 +260,42 @@ async def update_category(
     db.commit()
     db.refresh(category_db)
 
-    return category_db
+    return {
+        "status": "success",
+        "category": category_db,
+        "message": "Category updated successfully"
+    }
 
-@app.delete("/category/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/category/delete/{id}", status_code=status.HTTP_200_OK)
 def delete_category(id: int, db: Session = Depends(get_db)):
     category_db = db.query(models.Category).get(id)
 
-    if category_db:            
+    # Check if category exists
+    if not category_db:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "message": f"Category with id {id} not found"
+            }
+        )
+
+    try:
         db.delete(category_db)
         db.commit()
-    else:
-        raise HTTPException(status_code=404, detail=f"Category with id {id} not found")
-
-    return None
+    except IntegrityError:
+        db.rollback() 
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "message": f"Category with id {id} cannot be deleted because it is associated with existing posts or other data."
+            }
+        )
+    return {
+        "status": "success",
+        "message": "Category deleted successfully"
+    }
 
 # End Category
 
